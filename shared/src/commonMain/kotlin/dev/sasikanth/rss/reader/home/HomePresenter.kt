@@ -17,7 +17,6 @@
 
 package dev.sasikanth.rss.reader.home
 
-import androidx.compose.material.BottomSheetValue
 import androidx.compose.material.ExperimentalMaterialApi
 import app.cash.paging.cachedIn
 import app.cash.paging.createPager
@@ -29,6 +28,7 @@ import com.arkivanov.essenty.backhandler.BackCallback
 import com.arkivanov.essenty.instancekeeper.InstanceKeeper
 import com.arkivanov.essenty.instancekeeper.getOrCreate
 import com.arkivanov.essenty.lifecycle.doOnCreate
+import dev.sasikanth.rss.reader.components.bottomsheet.BottomSheetValue
 import dev.sasikanth.rss.reader.core.model.local.Feed
 import dev.sasikanth.rss.reader.core.model.local.FeedGroup
 import dev.sasikanth.rss.reader.core.model.local.PostWithMetadata
@@ -58,7 +58,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -230,6 +229,7 @@ class HomePresenter(
           postsType ->
           Pair(activeSource, postsType)
         }
+        .distinctUntilChanged()
         .onEach { (activeSource, postsType) ->
           _state.update {
             it.copy(
@@ -264,16 +264,15 @@ class HomePresenter(
               }
             }
 
-          rssRepository
-            .featuredPosts(
-              selectedFeedId = activeSource?.id,
-              unreadOnly = unreadOnly,
-              after = postsAfter
-            )
-            .map { Triple(it, postsType, activeSource) }
+          rssRepository.featuredPosts(
+            selectedFeedId = activeSource?.id,
+            unreadOnly = unreadOnly,
+            after = postsAfter
+          )
         }
-        .distinctUntilChangedBy { (featuredPosts, _, _) -> featuredPosts }
-        .onEach { (featuredPosts, postsType, activeSource) ->
+        .onEach { featuredPosts ->
+          val postsType = _state.value.postsType
+          val activeSource = _state.value.activeSource
           val featuredPostIds = featuredPosts.map { it.id }
 
           val unreadOnly =
